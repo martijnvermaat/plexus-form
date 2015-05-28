@@ -80,7 +80,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	module.exports = __webpack_require__(1);
+	module.exports = __webpack_require__(9);
 
 
 /***/ },
@@ -92,131 +92,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var React = __webpack_require__(2);
 	var $ = React.DOM;
 
-	var ou = __webpack_require__(5);
 
-	var fields = __webpack_require__(4);
-	var normalise = __webpack_require__(3);
+	var CheckBox = React.createClass({
+	  displayName: 'CheckBox',
 
-
-	module.exports = React.createClass({
-	  displayName: 'Form',
-
-	  getInitialState: function() {
-	    var values = this.props.values;
-	    var errors = this.validate(this.props.schema, values, context(this.props));
-	    return { values: values,
-	             output: values,
-	             errors: errors };
-	  },
-	  componentWillReceiveProps: function(props) {
-	    var values = props.values || this.state.values;
-	    var output = props.values || this.state.output;
-	    this.setState({
-	      values: values,
-	      output: output,
-	      errors: this.validate(props.schema, output, context(props))
-	    });
-	  },
-	  setValue: function(path, raw, parsed) {
-	    var schema = this.props.schema;
-	    var ctx    = context(this.props);
-	    var values = normalise(ou.setIn(this.state.values, path, raw),
-	                           schema, ctx);
-	    var output = normalise(ou.setIn(this.state.output, path, parsed),
-	                           schema, ctx);
-	    var errors = this.validate(schema, output, ctx);
-
-	    if (this.props.submitOnChange) {
-	      this.props.onSubmit(output, null, errors);
-	    }
-	    else {
-	      this.setState({
-	        values: values,
-	        output: output,
-	        errors: errors
-	      });
-	    }
-	  },
-	  getValue: function(path) {
-	    return ou.getIn(this.state.values, path);
-	  },
-	  getErrors: function(path) {
-	    return this.state.errors[makeKey(path)];
-	  },
-	  validate: function(schema, values, context) {
-	    return hashedErrors(this.props.validate(schema, values, context));
-	  },
-	  preventSubmit: function(event) {
-	    event.preventDefault();
-	  },
-	  handleSubmit: function(event) {
-	    this.props.onSubmit(this.state.output,
-	                        event.target.value,
-	                        this.state.errors);
-	  },
-	  handleKeyPress: function(event) {
-	    if (event.keyCode === 13 && this.props.enterKeySubmits) {
-	      this.props.onSubmit(this.state.output, this.props.enterKeySubmits);
-	    }
-	  },
-	  renderButtons: function() {
-	    var submit = this.handleSubmit;
-
-	    if (typeof this.props.buttons === 'function') {
-	      return this.props.buttons(submit);
-	    }
-	    else {
-	      var buttons = (this.props.buttons || ['Cancel', 'Submit'])
-	        .map(function(value) {
-	          return $.input({ type   : 'submit',
-	                           key    : value,
-	                           value  : value,
-	                           onClick: submit });
-	        });
-	      return $.p(null, buttons);
-	    }
+	  handleChange: function(event) {
+	    var val = event.target.checked;
+	    this.props.update(this.props.path, val, val);
 	  },
 	  render: function() {
-	    var renderedFields = fields.make(fields, {
-	      schema        : this.props.schema,
-	      context       : context(this.props),
-	      fieldWrapper  : this.props.fieldWrapper,
-	      sectionWrapper: this.props.sectionWrapper,
-	      handlers      : this.props.handlers,
-	      hints         : this.props.hints,
-	      path          : [],
-	      update        : this.setValue,
-	      getValue      : this.getValue,
-	      getErrors     : this.getErrors
-	    });
-
-	    return $.form({ onSubmit  : this.preventSubmit,
-	                    onKeyPress: this.handleKeyPress,
-	                    className : this.props.className
-	                  },
-	                  this.props.extraButtons ? this.renderButtons() : $.span(),
-	                  renderedFields,
-	                  this.renderButtons());
+	    return $.input({
+	      name: this.props.label,
+	      type: "checkbox",
+	      checked: this.props.value || false,
+	      onChange: this.handleChange });
 	  }
 	});
 
-	function hashedErrors(errors) {
-	  var result = {};
-	  var i, entry;
-	  for (i = 0; i < errors.length; ++i) {
-	    entry = errors[i];
-	    result[makeKey(entry.path)] = entry.errors;
-	  }
-	  return result;
-	}
+	module.exports = CheckBox;
 
-	function makeKey(path) {
-	  return path.join('_');
-	}
-
-	function context(props) {
-	  return props.context || props.schema;
-	}
 
 
 /***/ },
@@ -280,10 +174,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	module.exports = {
-	    CheckBox: __webpack_require__(8),
-	    FileField: __webpack_require__(9),
-	    InputField: __webpack_require__(10),
-	    UserDefinedField: __webpack_require__(11),
+	    CheckBox: __webpack_require__(1),
+	    FileField: __webpack_require__(10),
+	    InputField: __webpack_require__(11),
+	    UserDefinedField: __webpack_require__(8),
 	    Selection: __webpack_require__(12),
 	    make: __webpack_require__(13),
 	};
@@ -526,31 +420,182 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	var React = __webpack_require__(2);
-	var $ = React.DOM;
+
+	var normalizer = __webpack_require__(14);
+	var parser = __webpack_require__(15);
 
 
-	var CheckBox = React.createClass({
-	  displayName: 'CheckBox',
+	var UserDefinedField = React.createClass({
+	  displayName: 'UserDefinedField',
 
-	  handleChange: function(event) {
-	    var val = event.target.checked;
-	    this.props.update(this.props.path, val, val);
+	  normalize: function(text) {
+	    var n = normalizer[this.props.type];
+	    return n ? n(text) : text;
+	  },
+	  parse: function(text) {
+	    var p = parser[this.props.type];
+	    return p ? p(text) : text;
+	  },
+	  handleChange: function(value) {
+	    var text = this.normalize(value);
+	    this.props.update(this.props.path, text, this.parse(text));
+	  },
+	  handleKeyPress: function(event) {
+	    if (event.keyCode === 13) {
+	      event.preventDefault();
+	    }
 	  },
 	  render: function() {
-	    return $.input({
-	      name: this.props.key,
-	      type: "checkbox",
-	      checked: this.props.value || false,
-	      onChange: this.handleChange });
+	    return React.createElement(this.props.component, {
+	      schema    : this.props.schema,
+	      value     : this.props.value || '',
+	      onKeyPress: this.handleKeyPress,
+	      onChange  : this.handleChange
+	    });
 	  }
 	});
 
-	module.exports = CheckBox;
-
+	module.exports = UserDefinedField;
 
 
 /***/ },
 /* 9 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var React = __webpack_require__(2);
+	var $ = React.DOM;
+
+	var ou = __webpack_require__(5);
+
+	var fields = __webpack_require__(4);
+	var normalise = __webpack_require__(3);
+
+
+	module.exports = React.createClass({
+	  displayName: 'Form',
+
+	  getInitialState: function() {
+	    var values = this.props.values;
+	    var errors = this.validate(this.props.schema, values, context(this.props));
+	    return { values: values,
+	             output: values,
+	             errors: errors };
+	  },
+	  componentWillReceiveProps: function(props) {
+	    var values = props.values || this.state.values;
+	    var output = props.values || this.state.output;
+	    this.setState({
+	      values: values,
+	      output: output,
+	      errors: this.validate(props.schema, output, context(props))
+	    });
+	  },
+	  setValue: function(path, raw, parsed) {
+	    var schema = this.props.schema;
+	    var ctx    = context(this.props);
+	    var values = normalise(ou.setIn(this.state.values, path, raw),
+	                           schema, ctx);
+	    var output = normalise(ou.setIn(this.state.output, path, parsed),
+	                           schema, ctx);
+	    var errors = this.validate(schema, output, ctx);
+
+	    if (this.props.submitOnChange) {
+	      this.props.onSubmit(output, null, errors);
+	    }
+	    else {
+	      this.setState({
+	        values: values,
+	        output: output,
+	        errors: errors
+	      });
+	    }
+	  },
+	  getValue: function(path) {
+	    return ou.getIn(this.state.values, path);
+	  },
+	  getErrors: function(path) {
+	    return this.state.errors[makeKey(path)];
+	  },
+	  validate: function(schema, values, context) {
+	    return hashedErrors(this.props.validate(schema, values, context));
+	  },
+	  preventSubmit: function(event) {
+	    event.preventDefault();
+	  },
+	  handleSubmit: function(event) {
+	    this.props.onSubmit(this.state.output,
+	                        event.target.value,
+	                        this.state.errors);
+	  },
+	  handleKeyPress: function(event) {
+	    if (event.keyCode === 13 && this.props.enterKeySubmits) {
+	      this.props.onSubmit(this.state.output, this.props.enterKeySubmits);
+	    }
+	  },
+	  renderButtons: function() {
+	    var submit = this.handleSubmit;
+
+	    if (typeof this.props.buttons === 'function') {
+	      return this.props.buttons(submit);
+	    }
+	    else {
+	      var buttons = (this.props.buttons || ['Cancel', 'Submit'])
+	        .map(function(value) {
+	          return $.input({ type   : 'submit',
+	                           key    : value,
+	                           value  : value,
+	                           onClick: submit });
+	        });
+	      return $.p(null, buttons);
+	    }
+	  },
+	  render: function() {
+	    var renderedFields = fields.make(fields, {
+	      schema        : this.props.schema,
+	      context       : context(this.props),
+	      fieldWrapper  : this.props.fieldWrapper,
+	      sectionWrapper: this.props.sectionWrapper,
+	      handlers      : this.props.handlers,
+	      hints         : this.props.hints,
+	      path          : [],
+	      update        : this.setValue,
+	      getValue      : this.getValue,
+	      getErrors     : this.getErrors
+	    });
+
+	    return $.form({ onSubmit  : this.preventSubmit,
+	                    onKeyPress: this.handleKeyPress,
+	                    className : this.props.className
+	                  },
+	                  this.props.extraButtons ? this.renderButtons() : $.span(),
+	                  renderedFields,
+	                  this.renderButtons());
+	  }
+	});
+
+	function hashedErrors(errors) {
+	  var result = {};
+	  var i, entry;
+	  for (i = 0; i < errors.length; ++i) {
+	    entry = errors[i];
+	    result[makeKey(entry.path)] = entry.errors;
+	  }
+	  return result;
+	}
+
+	function makeKey(path) {
+	  return path.join('_');
+	}
+
+	function context(props) {
+	  return props.context || props.schema;
+	}
+
+
+/***/ },
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -612,7 +657,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 10 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -645,7 +690,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  render: function() {
 	    return $.input({
 	      type      : "text",
-	      name      : this.props.key,
+	      name      : this.props.label,
 	      value     : this.props.value || '',
 	      onKeyPress: this.handleKeyPress,
 	      onChange  : this.handleChange });
@@ -653,51 +698,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 	module.exports = InputField;
-
-
-
-/***/ },
-/* 11 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var React = __webpack_require__(2);
-
-	var normalizer = __webpack_require__(14);
-	var parser = __webpack_require__(15);
-
-
-	var UserDefinedField = React.createClass({
-	  displayName: 'UserDefinedField',
-
-	  normalize: function(text) {
-	    var n = normalizer[this.props.type];
-	    return n ? n(text) : text;
-	  },
-	  parse: function(text) {
-	    var p = parser[this.props.type];
-	    return p ? p(text) : text;
-	  },
-	  handleChange: function(value) {
-	    var text = this.normalize(value);
-	    this.props.update(this.props.path, text, this.parse(text));
-	  },
-	  handleKeyPress: function(event) {
-	    if (event.keyCode === 13) {
-	      event.preventDefault();
-	    }
-	  },
-	  render: function() {
-	    return React.createElement(this.props.component, {
-	      value     : this.props.value || '',
-	      onKeyPress: this.handleKeyPress,
-	      onChange  : this.handleChange
-	    });
-	  }
-	});
-
-	module.exports = UserDefinedField;
 
 
 
@@ -738,7 +738,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    return $.select(
 	      {
-	        name    : this.props.key,
+	        name    : this.props.label,
 	        value   : this.props.value || this.props.values[0],
 	        onChange: this.handleChange
 	      },
@@ -770,10 +770,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var schema = resolve(props.schema, props.context);
 	  var hints = schema['x-hints'] || {};
 	  var inputComponent = ou.getIn(hints, ['form', 'inputComponent']);
+	  var key = makeKey(props.path);
 
 	  props = ou.merge(props, {
 	    schema: schema,
-	    key   : makeKey(props.path),
+	    key   : key,
+	    label : key,
 	    value : props.getValue(props.path),
 	    errors: props.getErrors(props.path),
 	    type  : schema.type
@@ -827,10 +829,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	exports.string = function(text) {
-	  return text
-	    .replace(/\s+/g, ' ')
-	    .replace(/^ /, '')
-	    .replace(/\u00ad/g, '');
+	  return text;
 	};
 
 	exports.integer = function(text) {
@@ -950,15 +949,19 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	var errorClass = function(errors) {
-	  return (errors === null || errors.length === 0) ? '' : 'error';
+	  if(!errors || errors.length === 0) {
+	    return '';
+	  }
+
+	  return 'error';
 	};
 
 	var makeTitle = function(description, errors) {
 	  var parts = [];
-	  if (description !== null && description.length > 0) {
+	  if (description && description.length > 0) {
 	    parts.push(description);
 	  }
-	  if (errors !== null && errors.length > 0) {
+	  if (errors && errors.length > 0) {
 	    parts.push(errors.join('\n'));
 	  }
 	  return parts.join('\n\n');
@@ -973,12 +976,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return $.div(
 	      {
 	        className: classes.join(' '),
-	        key      : this.props.key,
+	        key      : this.props.label,
 	        title    : makeTitle(this.props.description, this.props.errors)
 	      },
 	      $.label(
 	        {
-	          htmlFor: this.props.key
+	          htmlFor: this.props.label
 	        },
 	        this.props.title),
 	      this.props.children);
@@ -997,7 +1000,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return $.fieldset(
 	      {
 	        className: classes.join(' '),
-	        key      : this.props.key
+	        key      : this.props.label
 	      },
 	      $.legend(
 	        {
@@ -1012,11 +1015,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var propsForWrapper = function(props) {
 	  return {
-	    key        : props.key,
+	    label      : props.label,
 	    path       : props.path,
 	    errors     : props.errors,
 	    classes    : ou.getIn(props.schema, ['x-hints', 'form', 'classes']),
 	    title      : props.schema.title,
+	    type       : props.schema.type,
 	    description: props.schema.description
 	  };
 	};
